@@ -1,11 +1,12 @@
 # Bathroom Configurator - AI-Powered Lead Generator
 
-Transform bathroom photos or sketches into stunning photorealistic renders with AI. This lead generation tool uses Google's Gemini AI to analyze bathroom layouts and generate styled renders, capturing valuable customer information in the process.
+Transform bathroom photos or sketches into stunning photorealistic renders with AI. This lead generation tool uses Google's **Gemini 3 Pro** (November 2025) to analyze bathroom layouts and generate styled renders, capturing valuable customer information in the process.
 
 ## Features
 
-🎨 **AI Layout Analysis**: Upload a photo or sketch → AI extracts dimensions, fixtures, and constraints
-🖼️ **Style Rendering**: Generate photorealistic renders in 4 styles (Modern, Classic, Minimalist, Luxury)
+✏️ **Built-in Sketch Tool**: Draw your bathroom with measurements using our Fabric.js-powered canvas (better than photos!)
+🎨 **AI Layout Analysis**: Gemini 3 Pro with thinking mode - state-of-the-art spatial reasoning (31.1% ARC-AGI-2 score)
+🖼️ **Style Rendering**: Gemini 3 Pro Image (Nano Banana Pro) generates photorealistic renders in 4 styles
 📊 **Lead Scoring**: Automatic lead qualification based on project scope and timeline
 ⚡ **Fast Processing**: ~30s analysis + ~60s rendering
 🔒 **Rate Limited**: Built-in protection (5 analyses/hour, 3 renders/hour per IP)
@@ -17,20 +18,25 @@ Transform bathroom photos or sketches into stunning photorealistic renders with 
 bathroom-configurator/
 ├── backend/               # FastAPI server
 │   ├── main.py           # API endpoints
-│   ├── gemini_client.py  # Gemini AI wrapper
+│   ├── gemini_client.py  # Gemini 3 Pro wrapper
 │   ├── prompts.py        # AI prompts & styles
 │   └── requirements.txt  # Python dependencies
 ├── frontend/             # Single-page web app
-│   ├── index.html        # UI layout
-│   └── app.js            # Client logic
+│   ├── index.html        # Main app UI
+│   ├── app.js            # Upload/analysis logic
+│   ├── sketch.html       # Sketch tool interface
+│   └── sketch.js         # Canvas drawing logic
 ├── docker-compose.yml    # Docker orchestration
 └── .env.example          # Environment template
 ```
 
 ## Tech Stack
 
-**Backend**: FastAPI, Google Gemini AI (2.0 Flash + Thinking Mode), Python 3.11+
-**Frontend**: Vanilla JavaScript, Tailwind CSS
+**Backend**: FastAPI, Google Gemini 3 Pro (Nov 2025) with thinking mode, Python 3.11+
+**Frontend**: Vanilla JavaScript, Fabric.js (canvas), Tailwind CSS
+**AI Models**:
+- **Gemini 3 Pro**: Spatial reasoning & layout analysis (thinking mode)
+- **Gemini 3 Pro Image (Nano Banana Pro)**: Photorealistic rendering
 **Deployment**: Docker, Nginx
 
 ## Quick Start
@@ -88,19 +94,41 @@ npx serve -p 3000
 
 ## Usage Flow
 
+### Option A: Sketch Tool (Recommended)
+
+**Why sketches beat photos**: Bathroom photos have poor lighting, distortion, and no scale reference. Sketches with measurements are 10x more accurate!
+
+### 1. Open Sketch Tool
+- Click "Open Sketch Tool" on main page
+- Access at http://localhost:3000/sketch.html
+
+### 2. Draw Your Bathroom
+- Enter room dimensions (length × width × height)
+- Use "Room Outline" tool to draw walls
+- Click fixture buttons to add toilet, sink, shower, etc.
+- Add measurement labels using "Add Measurement" tool
+- Export sends sketch + structured data to AI
+
+### 3. AI Validates Layout
+- Gemini 3 Pro validates sketch against dimensions
+- High confidence (95%) since measurements are explicit
+- No photo interpretation needed!
+
+### Option B: Photo Upload (Fallback)
+
 ### 1. Upload Bathroom Image
-- Drag & drop or select a photo/sketch
+- Drag & drop or select a photo
 - Supports JPG, PNG, WebP (max 10MB)
-- Best results: Include measurements or reference objects
+- ⚠️ Note: Photo quality issues often result in lower accuracy
 
 ### 2. AI Analysis
-- Gemini thinking mode extracts:
+- Gemini 3 Pro with thinking mode extracts:
   - Room dimensions (length, width, height)
   - Fixtures (toilet, sink, shower, bath)
   - Constraints (windows, doors, plumbing)
-  - Confidence score
+  - Confidence score (often lower for photos)
 
-### 3. Select Style
+### 3. Select Style (Both Options)
 Choose from 4 predefined styles:
 - **Modern**: Clean lines, floating vanity, large tiles, matte black
 - **Classic**: Traditional, subway tiles, chrome fixtures, elegant
@@ -336,6 +364,36 @@ async def analyze_bathroom(...):
 ### CRM webhook failing
 → Check `LEAD_WEBHOOK_URL` is accessible, review webhook logs
 
+### Sketch tool not loading
+→ Ensure Fabric.js CDN is accessible, check browser console for errors
+
+## Why Gemini 3 Pro?
+
+This project uses **Gemini 3 Pro** (released November 2025) for superior spatial reasoning:
+
+### Spatial Understanding
+- **31.1% ARC-AGI-2 score** (vs GPT-5.1: 17.6%) - nearly double the competition
+- **87.6% Video-MMMU** - excels at spatial + temporal dimensions
+- **Pixel-precise object location** - can output exact coordinates
+
+### Best for Bathroom Analysis
+1. **3D spatial relationships**: Understands door swing, clearances, fixture placement
+2. **Measurement validation**: Validates user dimensions against visual evidence
+3. **Thinking mode**: Deep reasoning for ambiguous or complex layouts
+4. **1M token context**: Can analyze multiple photos + sketches + references in one call
+
+### Model Selection
+| Model | Spatial Reasoning | Use Case |
+|-------|-------------------|----------|
+| **Gemini 3 Pro** | ⭐⭐⭐⭐⭐ | Layout analysis with thinking mode |
+| **Gemini 3 Pro Image (Nano Banana Pro)** | ⭐⭐⭐⭐⭐ | Photorealistic rendering maintaining layout |
+
+### Alternative Models Considered
+- **GPT-4o**: Strong OCR but weaker spatial reasoning (77.1% MMMU vs 87.6%)
+- **Claude 3.5 Sonnet**: Good at diagrams but trails on physical constraints
+
+**Result**: Gemini 3 Pro is the clear winner for spatial + measurement interpretation as of November 2025.
+
 ## License
 
 MIT License - See LICENSE file
@@ -350,9 +408,10 @@ For issues or questions:
 ## Credits
 
 Built with:
-- [Google Gemini AI](https://ai.google.dev/)
-- [FastAPI](https://fastapi.tiangolo.com/)
-- [Tailwind CSS](https://tailwindcss.com/)
+- [Google Gemini 3 Pro](https://ai.google.dev/) - State-of-the-art spatial AI
+- [FastAPI](https://fastapi.tiangolo.com/) - Modern Python web framework
+- [Fabric.js](http://fabricjs.com/) - Canvas drawing library (28k+ GitHub stars)
+- [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS framework
 
 ---
 

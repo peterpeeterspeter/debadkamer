@@ -25,9 +25,12 @@ class GeminiClient:
         genai.configure(api_key=api_key)
         self.api_key = api_key
 
-        # Models
-        self.thinking_model = genai.GenerativeModel('gemini-2.0-flash-thinking-exp-01-21')
-        self.flash_model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        # Models - Gemini 3 Pro (Released Nov 2025)
+        # Use Gemini 3 Pro for spatial reasoning with thinking mode
+        self.thinking_model = genai.GenerativeModel('gemini-3-pro')
+
+        # Use Gemini 3 Pro Image (Nano Banana Pro) for photorealistic rendering
+        self.image_model = genai.GenerativeModel('gemini-3-pro-image')
 
     def _retry_with_backoff(self, func, max_retries: int = 3, base_delay: float = 1.0):
         """Execute function with exponential backoff retry logic."""
@@ -46,10 +49,15 @@ class GeminiClient:
     def analyze_bathroom_layout(self, image_bytes: bytes) -> Dict[str, Any]:
         """
         Analyze bathroom image/sketch to extract dimensions, fixtures, and constraints.
-        Uses thinking mode for deep analysis.
+
+        Uses Gemini 3 Pro with thinking mode for superior spatial reasoning:
+        - State-of-the-art spatial understanding (31.1% ARC-AGI-2 score)
+        - Validates measurements against visual evidence
+        - Understands 3D spatial relationships and constraints
+        - Best-in-class for bathroom layout interpretation (Nov 2025)
 
         Args:
-            image_bytes: Raw image bytes (JPEG, PNG)
+            image_bytes: Raw image bytes (JPEG, PNG) - sketches recommended over photos
 
         Returns:
             Dict with room specs, fixtures, constraints, and confidence score
@@ -63,13 +71,16 @@ class GeminiClient:
             # Prepare prompt
             prompt = f"{EXTRACTION_SYSTEM_PROMPT}\n\n{EXTRACTION_USER_PROMPT}"
 
-            # Generate with thinking mode
+            # Generate with Gemini 3 Pro thinking mode
+            # Thinking mode enables deeper spatial reasoning for complex layouts
             response = self.thinking_model.generate_content(
                 [prompt, image],
                 generation_config=genai.GenerationConfig(
-                    temperature=0.4,
+                    temperature=0.4,  # Lower temp for precise measurements
                     top_p=0.95,
                     max_output_tokens=2048,
+                    # Note: thinking_budget can be adjusted based on complexity
+                    # Higher budget = more reasoning for ambiguous layouts
                 )
             )
 
@@ -136,7 +147,7 @@ class GeminiClient:
     ) -> bytes:
         """
         Generate photorealistic bathroom render from spec and style.
-        Uses Gemini Flash with Imagen 3.
+        Uses Gemini 3 Pro Image (Nano Banana Pro) for high-quality spatial rendering.
 
         Args:
             spec: Bathroom specification from analyze_bathroom_layout
@@ -152,10 +163,10 @@ class GeminiClient:
             # Get style-specific prompt
             prompt = get_rendering_prompt(spec, style)
 
-            logger.info(f"Generating {style} render with prompt length: {len(prompt)}")
+            logger.info(f"Generating {style} render with Gemini 3 Pro Image (Nano Banana Pro)")
 
-            # Generate image
-            response = self.flash_model.generate_content(
+            # Generate image with Gemini 3 Pro Image model
+            response = self.image_model.generate_content(
                 prompt,
                 generation_config=genai.GenerationConfig(
                     temperature=0.7,

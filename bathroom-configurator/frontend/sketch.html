@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bathroom Sketch Tool - AI Configurator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+    <style>
+        .tool-btn {
+            transition: all 0.2s;
+        }
+        .tool-btn:hover {
+            transform: translateY(-2px);
+        }
+        .tool-btn.active {
+            background-color: #3b82f6;
+            color: white;
+        }
+        #canvas-container {
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .fixture-btn {
+            border: 2px solid #e5e7eb;
+            transition: all 0.2s;
+        }
+        .fixture-btn:hover {
+            border-color: #3b82f6;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <header class="bg-white shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">
+                        <i class="fas fa-pencil-ruler text-blue-500"></i>
+                        Bathroom Sketch Tool
+                    </h1>
+                    <p class="text-sm text-gray-600 mt-1">Draw your bathroom layout with measurements</p>
+                </div>
+                <a href="index.html" class="text-blue-600 hover:text-blue-800">
+                    <i class="fas fa-arrow-left mr-2"></i>Back to Upload
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        <div class="grid lg:grid-cols-4 gap-6">
+            <!-- Toolbar -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-lg shadow-md p-4">
+                    <!-- Drawing Tools -->
+                    <div class="mb-6">
+                        <h3 class="font-bold text-gray-900 mb-3 flex items-center">
+                            <i class="fas fa-tools text-blue-500 mr-2"></i>
+                            Drawing Tools
+                        </h3>
+                        <div class="space-y-2">
+                            <button id="selectTool" class="tool-btn w-full py-2 px-4 bg-gray-100 rounded-lg text-left active">
+                                <i class="fas fa-mouse-pointer mr-2"></i>Select
+                            </button>
+                            <button id="rectangleTool" class="tool-btn w-full py-2 px-4 bg-gray-100 rounded-lg text-left">
+                                <i class="fas fa-square mr-2"></i>Room Outline
+                            </button>
+                            <button id="lineTool" class="tool-btn w-full py-2 px-4 bg-gray-100 rounded-lg text-left">
+                                <i class="fas fa-minus mr-2"></i>Wall/Line
+                            </button>
+                            <button id="textTool" class="tool-btn w-full py-2 px-4 bg-gray-100 rounded-lg text-left">
+                                <i class="fas fa-font mr-2"></i>Add Measurement
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Bathroom Fixtures -->
+                    <div class="mb-6">
+                        <h3 class="font-bold text-gray-900 mb-3 flex items-center">
+                            <i class="fas fa-toilet text-blue-500 mr-2"></i>
+                            Fixtures
+                        </h3>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button class="fixture-btn py-3 px-2 bg-white rounded-lg text-center" data-fixture="toilet">
+                                <i class="fas fa-toilet text-2xl text-gray-700 mb-1"></i>
+                                <p class="text-xs">Toilet</p>
+                            </button>
+                            <button class="fixture-btn py-3 px-2 bg-white rounded-lg text-center" data-fixture="sink">
+                                <i class="fas fa-sink text-2xl text-gray-700 mb-1"></i>
+                                <p class="text-xs">Sink</p>
+                            </button>
+                            <button class="fixture-btn py-3 px-2 bg-white rounded-lg text-center" data-fixture="shower">
+                                <i class="fas fa-shower text-2xl text-gray-700 mb-1"></i>
+                                <p class="text-xs">Shower</p>
+                            </button>
+                            <button class="fixture-btn py-3 px-2 bg-white rounded-lg text-center" data-fixture="bath">
+                                <i class="fas fa-bath text-2xl text-gray-700 mb-1"></i>
+                                <p class="text-xs">Bathtub</p>
+                            </button>
+                            <button class="fixture-btn py-3 px-2 bg-white rounded-lg text-center" data-fixture="door">
+                                <i class="fas fa-door-open text-2xl text-gray-700 mb-1"></i>
+                                <p class="text-xs">Door</p>
+                            </button>
+                            <button class="fixture-btn py-3 px-2 bg-white rounded-lg text-center" data-fixture="window">
+                                <i class="fas fa-window-maximize text-2xl text-gray-700 mb-1"></i>
+                                <p class="text-xs">Window</p>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Dimensions Input -->
+                    <div class="mb-6">
+                        <h3 class="font-bold text-gray-900 mb-3 flex items-center">
+                            <i class="fas fa-ruler-combined text-blue-500 mr-2"></i>
+                            Room Dimensions
+                        </h3>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Length (m)</label>
+                                <input type="number" id="roomLength" step="0.1" min="1" max="10"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="e.g., 3.5">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Width (m)</label>
+                                <input type="number" id="roomWidth" step="0.1" min="1" max="10"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="e.g., 2.8">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Height (m)</label>
+                                <input type="number" id="roomHeight" step="0.1" min="2" max="4"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="e.g., 2.5">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="space-y-2">
+                        <button id="clearCanvas" class="w-full py-2 px-4 bg-red-500 text-white rounded-lg hover:bg-red-600">
+                            <i class="fas fa-trash mr-2"></i>Clear All
+                        </button>
+                        <button id="deleteSelected" class="w-full py-2 px-4 bg-orange-500 text-white rounded-lg hover:bg-orange-600">
+                            <i class="fas fa-times mr-2"></i>Delete Selected
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Canvas Area -->
+            <div class="lg:col-span-3">
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <div class="mb-4 flex justify-between items-center">
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-900">Your Bathroom Sketch</h2>
+                            <p class="text-sm text-gray-600">Draw walls, add fixtures, and annotate with measurements</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button id="zoomIn" class="px-3 py-2 bg-gray-100 rounded-lg hover:bg-gray-200">
+                                <i class="fas fa-search-plus"></i>
+                            </button>
+                            <button id="zoomOut" class="px-3 py-2 bg-gray-100 rounded-lg hover:bg-gray-200">
+                                <i class="fas fa-search-minus"></i>
+                            </button>
+                            <button id="resetView" class="px-3 py-2 bg-gray-100 rounded-lg hover:bg-gray-200">
+                                <i class="fas fa-compress"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="canvas-container" class="bg-gray-50">
+                        <canvas id="sketchCanvas"></canvas>
+                    </div>
+
+                    <!-- Instructions -->
+                    <div class="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h4 class="font-medium text-blue-900 mb-2">
+                            <i class="fas fa-info-circle mr-2"></i>How to Use
+                        </h4>
+                        <ul class="text-sm text-blue-800 space-y-1">
+                            <li>1. Enter room dimensions on the left</li>
+                            <li>2. Draw room outline using "Room Outline" tool</li>
+                            <li>3. Click fixtures to add them to your sketch</li>
+                            <li>4. Use "Add Measurement" to label distances</li>
+                            <li>5. Click "Export & Analyze" when done</li>
+                        </ul>
+                    </div>
+
+                    <!-- Export Button -->
+                    <div class="mt-6">
+                        <button id="exportSketch" class="w-full py-3 px-6 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-lg">
+                            <i class="fas fa-check-circle mr-2"></i>Export & Analyze with AI
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="sketch.js"></script>
+</body>
+</html>

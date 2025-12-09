@@ -9,12 +9,19 @@ EXTRACTION_SYSTEM_PROMPT = """You are an expert bathroom designer and architect 
 
 Your task is to analyze bathroom images (photos or sketches) and extract precise specifications in JSON format.
 
+IMPORTANT: SKETCHES ARE PREFERRED OVER PHOTOS
+- Sketches often include explicit measurements and are easier to interpret
+- Photos have quality issues (poor lighting, distortion, no scale reference)
+- If the image is a sketch with labeled measurements, use those measurements directly
+- If the image appears to be from our sketch tool (has grid, labeled fixtures), trust the annotations
+
 CRITICAL REQUIREMENTS:
 1. Measure dimensions carefully - consider visible reference objects (doors, tiles, fixtures)
-2. Identify ALL fixtures and their approximate positions
-3. Note constraints (windows, doors, plumbing locations, structural elements)
-4. Provide a confidence score based on image clarity and measurement certainty
-5. Be realistic - typical bathrooms are 2-15m² with 2.4-3m ceiling height
+2. If measurements are explicitly labeled in the image, USE THOSE EXACT VALUES
+3. Identify ALL fixtures and their approximate positions
+4. Note constraints (windows, doors, plumbing locations, structural elements)
+5. Provide a confidence score based on image clarity and measurement certainty
+6. Be realistic - typical bathrooms are 2-15m² with 2.4-3m ceiling height
 
 SPATIAL POSITIONS:
 - Use compass directions: NW (northwest), NE, SW, SE, N, S, E, W, CENTER

@@ -44,6 +44,7 @@ const successSection = document.getElementById('successSection');
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     loadStyles();
+    checkForSketchData();
 });
 
 /**
@@ -430,6 +431,61 @@ function showError(message) {
     setTimeout(() => {
         toast.remove();
     }, 5000);
+}
+
+/**
+ * Check if coming from sketch tool with pre-populated data
+ */
+function checkForSketchData() {
+    // Check URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const source = urlParams.get('source');
+
+    if (source === 'sketch') {
+        // Retrieve sketch data from session storage
+        const sketchSpecStr = sessionStorage.getItem('sketchSpec');
+        const sketchImageStr = sessionStorage.getItem('sketchImage');
+
+        if (sketchSpecStr && sketchImageStr) {
+            // Parse spec
+            currentSpec = JSON.parse(sketchSpecStr);
+
+            // Display sketch image as preview
+            previewImg.src = sketchImageStr;
+            imagePreview.classList.remove('hidden');
+            dropzone.classList.add('hidden');
+
+            // Hide analyze button (already have spec)
+            analyzeBtn.classList.add('hidden');
+
+            // Display specs immediately
+            displaySpecs(currentSpec);
+            specsSection.classList.remove('hidden');
+            styleSection.classList.remove('hidden');
+
+            // Scroll to specs
+            specsSection.scrollIntoView({ behavior: 'smooth' });
+
+            // Clear session storage
+            sessionStorage.removeItem('sketchSpec');
+            sessionStorage.removeItem('sketchImage');
+
+            // Show success message
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 max-w-md';
+            toast.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-check-circle mr-3 text-xl"></i>
+                    <div>
+                        <p class="font-medium">Sketch Imported!</p>
+                        <p class="text-sm">Your bathroom layout has been loaded successfully</p>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 5000);
+        }
+    }
 }
 
 // Make functions globally accessible
