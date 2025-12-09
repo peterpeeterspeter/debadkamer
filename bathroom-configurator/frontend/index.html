@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bathroom Configurator - AI-Powered Design</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .dropzone {
+            border: 2px dashed #cbd5e0;
+            transition: all 0.3s ease;
+        }
+        .dropzone.dragover {
+            border-color: #4299e1;
+            background-color: #ebf8ff;
+        }
+        .style-card {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .style-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .style-card.selected {
+            border: 3px solid #4299e1;
+            box-shadow: 0 0 20px rgba(66, 153, 225, 0.3);
+        }
+        .spinner {
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #4299e1;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">
+                        <i class="fas fa-bath text-blue-500"></i>
+                        Bathroom Configurator
+                    </h1>
+                    <p class="text-sm text-gray-600 mt-1">AI-powered bathroom design & visualization</p>
+                </div>
+                <div class="text-right">
+                    <a href="https://finetuner.be" target="_blank" class="text-blue-600 hover:text-blue-800 font-medium">
+                        finetuner.be
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        <!-- Step 1: Upload -->
+        <section id="uploadSection" class="mb-8">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">
+                    <span class="bg-blue-500 text-white rounded-full w-8 h-8 inline-flex items-center justify-center mr-2">1</span>
+                    Upload Your Bathroom
+                </h2>
+                <p class="text-gray-600 mb-6">Upload a photo or sketch of your bathroom. Include measurements if possible for better accuracy.</p>
+
+                <div id="dropzone" class="dropzone rounded-lg p-12 text-center">
+                    <i class="fas fa-cloud-upload-alt text-6xl text-gray-400 mb-4"></i>
+                    <p class="text-xl text-gray-700 mb-2">Drag & drop your image here</p>
+                    <p class="text-sm text-gray-500 mb-4">or</p>
+                    <label for="fileInput" class="bg-blue-500 text-white px-6 py-3 rounded-lg cursor-pointer hover:bg-blue-600 inline-block">
+                        Choose File
+                    </label>
+                    <input type="file" id="fileInput" accept="image/*" class="hidden">
+                    <p class="text-xs text-gray-500 mt-4">Supported: JPG, PNG, WebP (max 10MB)</p>
+                </div>
+
+                <div id="imagePreview" class="mt-6 hidden">
+                    <img id="previewImg" src="" alt="Preview" class="max-w-md mx-auto rounded-lg shadow-md">
+                    <button id="analyzeBtn" class="mt-4 bg-blue-500 text-white px-8 py-3 rounded-lg hover:bg-blue-600 block mx-auto font-medium">
+                        <i class="fas fa-magic mr-2"></i>Analyze Layout
+                    </button>
+                </div>
+
+                <div id="analyzingLoader" class="mt-6 hidden text-center">
+                    <div class="spinner mx-auto mb-4"></div>
+                    <p class="text-lg text-gray-700">AI analyzing your bathroom layout...</p>
+                    <p class="text-sm text-gray-500">This may take 20-30 seconds</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Step 2: Review Specs -->
+        <section id="specsSection" class="mb-8 hidden">
+            <div class="bg-white rounded-lg shadow-md p-6 fade-in">
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">
+                    <span class="bg-blue-500 text-white rounded-full w-8 h-8 inline-flex items-center justify-center mr-2">2</span>
+                    Extracted Specifications
+                </h2>
+
+                <div id="specsContent" class="grid md:grid-cols-2 gap-6">
+                    <!-- Specs will be populated here -->
+                </div>
+
+                <div class="mt-6 flex items-center justify-between bg-blue-50 p-4 rounded-lg">
+                    <div class="flex items-center">
+                        <i class="fas fa-check-circle text-green-500 text-2xl mr-3"></i>
+                        <div>
+                            <p class="font-medium text-gray-900">Analysis Complete</p>
+                            <p class="text-sm text-gray-600">Confidence: <span id="confidenceScore"></span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Step 3: Choose Style -->
+        <section id="styleSection" class="mb-8 hidden">
+            <div class="bg-white rounded-lg shadow-md p-6 fade-in">
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">
+                    <span class="bg-blue-500 text-white rounded-full w-8 h-8 inline-flex items-center justify-center mr-2">3</span>
+                    Choose Your Style
+                </h2>
+                <p class="text-gray-600 mb-6">Select a design style to see your bathroom visualized</p>
+
+                <div id="styleGrid" class="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                    <!-- Styles will be populated here -->
+                </div>
+
+                <button id="renderBtn" class="bg-blue-500 text-white px-8 py-3 rounded-lg hover:bg-blue-600 block mx-auto font-medium disabled:bg-gray-300 disabled:cursor-not-allowed" disabled>
+                    <i class="fas fa-paint-brush mr-2"></i>Generate Render
+                </button>
+
+                <div id="renderingLoader" class="mt-6 hidden text-center">
+                    <div class="spinner mx-auto mb-4"></div>
+                    <p class="text-lg text-gray-700">Generating your personalized render...</p>
+                    <p class="text-sm text-gray-500">This may take 45-60 seconds</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Step 4: View Render -->
+        <section id="renderSection" class="mb-8 hidden">
+            <div class="bg-white rounded-lg shadow-md p-6 fade-in">
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">
+                    <span class="bg-blue-500 text-white rounded-full w-8 h-8 inline-flex items-center justify-center mr-2">4</span>
+                    Your Design Concept
+                </h2>
+
+                <div id="renderDisplay" class="mb-6">
+                    <img id="renderImg" src="" alt="Bathroom Render" class="w-full rounded-lg shadow-lg">
+                    <p class="text-xs text-gray-500 text-center mt-2">Concept render - Actual results may vary</p>
+                </div>
+
+                <div class="text-center">
+                    <p class="text-lg text-gray-700 mb-4">Love this design? Let's make it happen!</p>
+                    <button id="showLeadForm" class="bg-green-500 text-white px-8 py-3 rounded-lg hover:bg-green-600 font-medium">
+                        <i class="fas fa-download mr-2"></i>Get Free Quote
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Step 5: Lead Capture -->
+        <section id="leadSection" class="mb-8 hidden">
+            <div class="bg-white rounded-lg shadow-md p-6 fade-in">
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">
+                    <span class="bg-green-500 text-white rounded-full w-8 h-8 inline-flex items-center justify-center mr-2">5</span>
+                    Get Your Free Quote
+                </h2>
+                <p class="text-gray-600 mb-6">Fill in your details and we'll send you the render plus a personalized quote</p>
+
+                <form id="leadForm" class="max-w-2xl mx-auto">
+                    <div class="grid md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
+                            <input type="text" id="leadName" required
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Email *</label>
+                            <input type="email" id="leadEmail" required
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Phone Number *</label>
+                        <input type="tel" id="leadPhone" required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Project Timeline *</label>
+                        <select id="leadTimeline" required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="">Select timeline...</option>
+                            <option value="1-3 months">1-3 months</option>
+                            <option value="3-6 months">3-6 months</option>
+                            <option value="6-12 months">6-12 months</option>
+                            <option value="12+ months">12+ months</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="w-full bg-green-500 text-white px-8 py-3 rounded-lg hover:bg-green-600 font-medium">
+                        <i class="fas fa-paper-plane mr-2"></i>Submit & Download Render
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- Success Message -->
+        <section id="successSection" class="mb-8 hidden">
+            <div class="bg-green-50 border-2 border-green-500 rounded-lg p-8 text-center fade-in">
+                <i class="fas fa-check-circle text-green-500 text-6xl mb-4"></i>
+                <h2 class="text-3xl font-bold text-gray-900 mb-2">Thank You!</h2>
+                <p class="text-lg text-gray-700 mb-4">We've received your request and will contact you within 24 hours.</p>
+                <p class="text-gray-600">Check your email for the render and additional information.</p>
+                <button onclick="location.reload()" class="mt-6 bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600">
+                    Start Another Project
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 mt-12">
+        <div class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 text-center text-gray-600">
+            <p>&copy; 2024 <a href="https://finetuner.be" class="text-blue-600 hover:text-blue-800">finetuner.be</a> - AI-Powered Bathroom Design</p>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
