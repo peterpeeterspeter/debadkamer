@@ -27,3 +27,6 @@ pydantic-settings==2.1.0
 
 # Async support
 aiofiles==23.2.1
+
+# Supabase database client
+supabase==2.3.4

@@ -22,6 +22,7 @@ from dotenv import load_dotenv
 
 from gemini_client import GeminiClient
 from prompts import get_error_message, STYLES
+from database import db
 
 # Load environment variables
 load_dotenv()
@@ -109,6 +110,14 @@ class LeadSubmission(BaseModel):
 
 
 # Helper functions
+def get_session_id(request: Request) -> str:
+    """Get or generate session ID from request."""
+    session_id = request.headers.get("X-Session-ID")
+    if not session_id:
+        session_id = str(uuid.uuid4())
+    return session_id
+
+
 def validate_image_file(file: UploadFile) -> None:
     """Validate uploaded image file."""
     # Check file extension
@@ -215,9 +224,28 @@ async def analyze_bathroom(
                 detail=get_error_message("low_confidence")
             )
 
+        # Store in Supabase
+        session_id = get_session_id(request)
+        stored_spec = await db.store_bathroom_spec(
+            session_id=session_id,
+            spec_json=spec,
+            confidence_score=spec.get("confidence")
+        )
+
+        # Track analytics event
+        await db.track_event(
+            session_id=session_id,
+            event_type="analyze",
+            event_data={"confidence": spec.get("confidence")},
+            user_agent=request.headers.get("User-Agent"),
+            ip_address=get_remote_address(request)
+        )
+
         return {
             "success": True,
             "spec": spec,
+            "spec_id": stored_spec.get("id"),
+            "session_id": session_id,
             "message": "Analysis complete"
         }
 
@@ -253,6 +281,9 @@ async def render_bathroom(
         filename = f"render_{render_id}.png"
         filepath = STATIC_DIR / filename
 
+        # Track generation time
+        start_time = datetime.utcnow()
+
         # Generate render with Gemini
         try:
             image_bytes = gemini_client.generate_bathroom_render(
@@ -272,14 +303,48 @@ async def render_bathroom(
                 detail=get_error_message("api_error")
             )
 
+        # Calculate generation time
+        end_time = datetime.utcnow()
+        generation_time_ms = int((end_time - start_time).total_seconds() * 1000)
+
         # Generate public URL
         base_url = os.getenv("BASE_URL", "http://localhost:8000")
         render_url = f"{base_url}/static/{filename}"
 
+        # Store in Supabase
+        session_id = get_session_id(request)
+        spec_id = request.headers.get("X-Spec-ID")
+
+        from prompts import get_rendering_prompt
+        prompt_used = get_rendering_prompt(spec, style)
+
+        stored_render = await db.store_render(
+            session_id=session_id,
+            spec_id=spec_id,
+            selected_style=style,
+            render_url=render_url,
+            prompt_used=prompt_used,
+            generation_time_ms=generation_time_ms
+        )
+
+        # Track analytics event
+        await db.track_event(
+            session_id=session_id,
+            event_type="render",
+            event_data={
+                "style": style,
+                "generation_time_ms": generation_time_ms
+            },
+            user_agent=request.headers.get("User-Agent"),
+            ip_address=get_remote_address(request)
+        )
+
         return {
             "success": True,
             "render_url": render_url,
+            "render_id": stored_render.get("id"),
             "style": style,
+            "session_id": session_id,
             "message": "Render generated successfully"
         }
 
@@ -294,7 +359,7 @@ async def render_bathroom(
 
 
 @app.post("/api/submit-lead")
-async def submit_lead(lead: LeadSubmission):
+async def submit_lead(request: Request, lead: LeadSubmission):
     """
     Submit lead information after viewing render.
 
@@ -307,7 +372,37 @@ async def submit_lead(lead: LeadSubmission):
             timeline=lead.project_timeline
         )
 
-        # Prepare lead data
+        # Get session ID
+        session_id = get_session_id(request)
+
+        # Store in Supabase first (primary storage)
+        stored_lead = await db.store_lead(
+            name=lead.name,
+            email=lead.email,
+            phone=lead.phone,
+            session_id=session_id,
+            spec_json=lead.spec_json,
+            render_url=lead.render_url,
+            lead_score=lead_score,
+            metadata={
+                "project_timeline": lead.project_timeline,
+                "source": "bathroom_configurator"
+            }
+        )
+
+        # Track analytics event
+        await db.track_event(
+            session_id=session_id,
+            event_type="submit_lead",
+            event_data={
+                "lead_score": lead_score,
+                "project_timeline": lead.project_timeline
+            },
+            user_agent=request.headers.get("User-Agent"),
+            ip_address=get_remote_address(request)
+        )
+
+        # Prepare lead data for webhook
         lead_data = {
             "timestamp": datetime.utcnow().isoformat(),
             "name": lead.name,
@@ -320,11 +415,12 @@ async def submit_lead(lead: LeadSubmission):
             "source": "bathroom_configurator"
         }
 
-        # Send to webhook (async, don't wait)
+        # Send to webhook (async, don't wait - this is backup only)
         await send_lead_to_webhook(lead_data)
 
         return {
             "success": True,
+            "lead_id": stored_lead.get("id"),
             "lead_score": lead_score,
             "message": "Thank you! We'll contact you soon to discuss your project."
         }
@@ -334,6 +430,92 @@ async def submit_lead(lead: LeadSubmission):
         raise HTTPException(
             status_code=500,
             detail="Error submitting lead - please try again"
+        )
+
+
+@app.get("/api/admin/leads")
+async def get_admin_leads(
+    status: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0
+):
+    """
+    Get all leads for admin dashboard.
+
+    In production, this should require authentication.
+    """
+    try:
+        leads = await db.get_all_leads(status=status, limit=limit, offset=offset)
+        return {
+            "success": True,
+            "leads": leads,
+            "count": len(leads)
+        }
+    except Exception as e:
+        print(f"Error fetching leads: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Error fetching leads"
+        )
+
+
+@app.put("/api/admin/leads/{lead_id}/status")
+async def update_lead_status_endpoint(
+    lead_id: str,
+    status: str
+):
+    """
+    Update lead status.
+
+    In production, this should require authentication.
+    """
+    try:
+        valid_statuses = ["new", "contacted", "qualified", "closed"]
+        if status not in valid_statuses:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Status must be one of: {', '.join(valid_statuses)}"
+            )
+
+        success = await db.update_lead_status(lead_id, status)
+        if not success:
+            raise HTTPException(
+                status_code=404,
+                detail="Lead not found"
+            )
+
+        return {
+            "success": True,
+            "message": "Lead status updated"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error updating lead status: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Error updating lead status"
+        )
+
+
+@app.get("/api/admin/analytics")
+async def get_admin_analytics(days: int = 7):
+    """
+    Get analytics summary for admin dashboard.
+
+    In production, this should require authentication.
+    """
+    try:
+        analytics = await db.get_analytics_summary(days=days)
+        return {
+            "success": True,
+            "analytics": analytics
+        }
+    except Exception as e:
+        print(f"Error fetching analytics: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Error fetching analytics"
         )
 
 

@@ -8,11 +8,39 @@
 const API_BASE_URL = import.meta.env?.VITE_API_URL ||
                      (window.location.hostname === 'localhost' ? 'http://localhost:8000' : window.location.origin);
 
+// Session tracking
+let sessionId = null;
+let specId = null;
+
 // Global state
 let currentSpec = null;
 let selectedStyle = null;
 let currentRenderUrl = null;
 let uploadedFile = null;
+
+/**
+ * Generate or retrieve session ID
+ */
+function getSessionId() {
+    if (sessionId) return sessionId;
+
+    sessionId = sessionStorage.getItem('sessionId');
+    if (!sessionId) {
+        sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        sessionStorage.setItem('sessionId', sessionId);
+    }
+    return sessionId;
+}
+
+/**
+ * Get common request headers
+ */
+function getHeaders(additionalHeaders = {}) {
+    return {
+        'X-Session-ID': getSessionId(),
+        ...additionalHeaders
+    };
+}
 
 // DOM Elements
 const dropzone = document.getElementById('dropzone');
@@ -41,6 +69,7 @@ const successSection = document.getElementById('successSection');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    getSessionId();
     setupEventListeners();
     loadStyles();
     checkForSketchData();
@@ -151,6 +180,7 @@ async function analyzeBathroom() {
         // Call API
         const response = await fetch(`${API_BASE_URL}/api/analyze`, {
             method: 'POST',
+            headers: getHeaders(),
             body: formData
         });
 
@@ -160,8 +190,10 @@ async function analyzeBathroom() {
             throw new Error(data.detail || 'Analysis failed');
         }
 
-        // Store spec
+        // Store spec and session data
         currentSpec = data.spec;
+        specId = data.spec_id;
+        sessionId = data.session_id;
 
         // Display specs
         displaySpecs(currentSpec);
@@ -319,9 +351,10 @@ async function generateRender() {
         // Call render API
         const response = await fetch(`${API_BASE_URL}/api/render`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: getHeaders({
+                'Content-Type': 'application/json',
+                'X-Spec-ID': specId
+            }),
             body: JSON.stringify({
                 spec: currentSpec,
                 style: selectedStyle
@@ -334,8 +367,9 @@ async function generateRender() {
             throw new Error(data.detail || 'Rendering failed');
         }
 
-        // Store render URL
+        // Store render URL and session data
         currentRenderUrl = data.render_url;
+        sessionId = data.session_id;
 
         // Display render
         renderImg.src = currentRenderUrl;
@@ -370,9 +404,9 @@ async function handleLeadSubmit(e) {
     try {
         const response = await fetch(`${API_BASE_URL}/api/submit-lead`, {
             method: 'POST',
-            headers: {
+            headers: getHeaders({
                 'Content-Type': 'application/json'
-            },
+            }),
             body: JSON.stringify(leadData)
         });
 

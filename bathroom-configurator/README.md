@@ -8,9 +8,11 @@ Transform bathroom photos or sketches into stunning photorealistic renders with 
 🎨 **AI Layout Analysis**: Gemini 3 Pro with thinking mode - state-of-the-art spatial reasoning (31.1% ARC-AGI-2 score)
 🖼️ **Style Rendering**: Gemini 3 Pro Image (Nano Banana Pro) generates photorealistic renders in 4 styles
 📊 **Lead Scoring**: Automatic lead qualification based on project scope and timeline
+💾 **Supabase Integration**: All leads stored permanently in database with analytics tracking
+📈 **Admin Dashboard**: View leads, analytics, conversion rates, and popular styles
 ⚡ **Fast Processing**: ~30s analysis + ~60s rendering
 🔒 **Rate Limited**: Built-in protection (5 analyses/hour, 3 renders/hour per IP)
-🎯 **CRM Integration**: Optional webhook for automatic lead forwarding
+🎯 **CRM Integration**: Optional webhook for automatic lead forwarding (backup)
 
 ## Architecture
 
@@ -20,12 +22,14 @@ bathroom-configurator/
 │   ├── main.py           # API endpoints
 │   ├── gemini_client.py  # Gemini 3 Pro wrapper
 │   ├── prompts.py        # AI prompts & styles
+│   ├── database.py       # Supabase integration
 │   └── requirements.txt  # Python dependencies
 ├── frontend/             # Single-page web app
 │   ├── index.html        # Main app UI
 │   ├── app.js            # Upload/analysis logic
 │   ├── sketch.html       # Sketch tool interface
-│   └── sketch.js         # Canvas drawing logic
+│   ├── sketch.js         # Canvas drawing logic
+│   └── admin.html        # Admin dashboard
 ├── docker-compose.yml    # Docker orchestration
 └── .env.example          # Environment template
 ```
@@ -34,6 +38,7 @@ bathroom-configurator/
 
 **Backend**: FastAPI, Google Gemini 3 Pro (Nov 2025) with thinking mode, Python 3.11+
 **Frontend**: Vanilla JavaScript, Fabric.js (canvas), Tailwind CSS
+**Database**: Supabase (PostgreSQL) with Row Level Security
 **AI Models**:
 - **Gemini 3 Pro**: Spatial reasoning & layout analysis (thinking mode)
 - **Gemini 3 Pro Image (Nano Banana Pro)**: Photorealistic rendering
@@ -55,9 +60,11 @@ cp .env.example .env
 ```
 
 2. **Configure environment**
-Edit `.env` and add your Gemini API key:
+Edit `.env` and add your keys:
 ```env
 GEMINI_API_KEY=your_actual_api_key_here
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_SUPABASE_ANON_KEY=your_supabase_anon_key_here
 BASE_URL=http://localhost:3000
 LEAD_WEBHOOK_URL=https://your-crm.com/api/leads  # Optional
 ```
@@ -69,6 +76,7 @@ docker-compose up -d
 
 4. **Access the app**
 - Frontend: http://localhost:3000
+- Admin Dashboard: http://localhost:3000/admin.html
 - Backend API: http://localhost:8000
 - API Docs: http://localhost:8000/docs
 
@@ -242,8 +250,10 @@ Submit lead information after viewing render.
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `GEMINI_API_KEY` | Google Gemini API key (required) | - |
+| `VITE_SUPABASE_URL` | Supabase project URL (required) | - |
+| `VITE_SUPABASE_SUPABASE_ANON_KEY` | Supabase anon key (required) | - |
 | `BASE_URL` | Public URL for static files | `http://localhost:8000` |
-| `LEAD_WEBHOOK_URL` | CRM webhook for lead data | - |
+| `LEAD_WEBHOOK_URL` | CRM webhook for lead data (optional backup) | - |
 | `ANALYZE_RATE_LIMIT` | Max analyses per IP/hour | 5 |
 | `RENDER_RATE_LIMIT` | Max renders per IP/hour | 3 |
 
@@ -274,6 +284,53 @@ Scores based on:
 - **Confidence**: >0.8 (1pt)
 
 **Thresholds**: High (6+), Medium (3-5), Low (<3)
+
+## Admin Dashboard
+
+Access the admin dashboard at `/admin.html` to manage leads and view analytics.
+
+### Features
+
+- **Analytics Overview**: View total leads, analyses, renders, and conversion rate
+- **Popular Styles**: See which bathroom styles are most requested
+- **Leads Management**: View all leads with filtering by status
+- **Status Updates**: Change lead status (new → contacted → qualified → closed)
+- **Export**: Download leads as CSV for CRM import
+- **Lead Details**: View contact info, project timeline, bathroom area, and lead score
+
+### Database Schema
+
+All data is stored in Supabase with the following tables:
+
+**leads** - Lead submissions
+- Contact information (name, email, phone)
+- Bathroom specification JSON
+- Render URL
+- Lead score (high/medium/low)
+- Status tracking (new/contacted/qualified/closed)
+- Session ID for analytics tracking
+
+**bathroom_specs** - Analysis results
+- Session ID for funnel tracking
+- Full specification JSON
+- Confidence scores
+- Extracted dimensions and fixtures
+
+**renders** - Generated renders
+- Session ID and spec ID references
+- Selected style
+- Render URL and generation time
+- Prompt used for generation
+
+**analytics_events** - User behavior tracking
+- Event types (page_view, upload, analyze, render, submit_lead)
+- Session tracking for conversion funnel analysis
+- User agent and IP for analytics
+
+All tables use Row Level Security (RLS) policies:
+- Public can insert data (lead submission)
+- Public can view their own data
+- Admin access requires authentication
 
 ## Customization
 
@@ -332,7 +389,7 @@ async def analyze_bathroom(...):
 1. **Caching**: Add Redis for render caching
 2. **CDN**: Serve static files via CDN
 3. **Load Balancing**: Multiple backend instances
-4. **Database**: Store leads in PostgreSQL instead of webhook-only
+4. **Database Indexes**: Optimize Supabase queries with additional indexes
 
 ### Monitoring
 
