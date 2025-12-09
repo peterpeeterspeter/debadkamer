@@ -4,10 +4,9 @@
  */
 
 // API Configuration
-// Use window.location.origin for production, fallback to localhost for development
-const API_BASE_URL = window.location.hostname === 'localhost'
-    ? 'http://localhost:8000'
-    : window.location.origin;
+// Priority: Environment variable > Relative URL (for proxied requests) > Fallback to localhost
+const API_BASE_URL = import.meta.env?.VITE_API_URL ||
+                     (window.location.hostname === 'localhost' ? 'http://localhost:8000' : window.location.origin);
 
 // Global state
 let currentSpec = null;
