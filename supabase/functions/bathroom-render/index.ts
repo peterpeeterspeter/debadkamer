@@ -129,10 +129,13 @@ Deno.serve(async (req: Request) => {
     let renderUrl;
     let prompt;
 
+    console.log('Render conditions - geminiApiKey:', !!geminiApiKey, 'emptyRoomImageUrl:', !!emptyRoomImageUrl);
+
     if (geminiApiKey && emptyRoomImageUrl) {
       try {
+        console.log('Attempting image-to-image render with empty room');
         prompt = getRenderingPrompt(spec, style, true);
-        
+
         const base64Data = emptyRoomImageUrl.split(',')[1];
         const mimeType = emptyRoomImageUrl.match(/data:(.*?);/)?.[1] || 'image/png';
 
@@ -161,24 +164,80 @@ Deno.serve(async (req: Request) => {
           })
         });
 
+        console.log('Gemini response status:', geminiResponse.status);
+
         if (geminiResponse.ok) {
           const geminiData = await geminiResponse.json();
           const imagePart = geminiData.candidates?.[0]?.content?.parts?.find(
             (part: any) => part.inline_data
           );
-          
+
           if (imagePart) {
             const generatedImageBase64 = imagePart.inline_data.data;
             const generatedMimeType = imagePart.inline_data.mime_type;
             renderUrl = `data:${generatedMimeType};base64,${generatedImageBase64}`;
+            console.log('Image generated successfully, size:', generatedImageBase64.length);
+          } else {
+            console.error('No image part in response:', JSON.stringify(geminiData).substring(0, 500));
           }
+        } else {
+          const errorText = await geminiResponse.text();
+          console.error('Gemini API error:', errorText.substring(0, 500));
         }
       } catch (error) {
-        console.error('Gemini render error:', error);
+        console.error('Gemini render exception:', error.message);
       }
+    } else if (geminiApiKey && !emptyRoomImageUrl) {
+      try {
+        console.log('Attempting text-to-image render (no empty room)');
+        prompt = getRenderingPrompt(spec, style, false);
+
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent?key=${geminiApiKey}`;
+
+        const geminiResponse = await fetch(geminiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{ text: prompt }]
+            }],
+            generationConfig: {
+              temperature: 0.7,
+              topP: 0.95,
+              responseModalities: ['image'],
+            }
+          })
+        });
+
+        console.log('Text-to-image response status:', geminiResponse.status);
+
+        if (geminiResponse.ok) {
+          const geminiData = await geminiResponse.json();
+          const imagePart = geminiData.candidates?.[0]?.content?.parts?.find(
+            (part: any) => part.inline_data
+          );
+
+          if (imagePart) {
+            const generatedImageBase64 = imagePart.inline_data.data;
+            const generatedMimeType = imagePart.inline_data.mime_type;
+            renderUrl = `data:${generatedMimeType};base64,${generatedImageBase64}`;
+            console.log('Text-to-image generated successfully');
+          } else {
+            console.error('No image in text-to-image response:', JSON.stringify(geminiData).substring(0, 500));
+          }
+        } else {
+          const errorText = await geminiResponse.text();
+          console.error('Text-to-image API error:', errorText.substring(0, 500));
+        }
+      } catch (error) {
+        console.error('Text-to-image exception:', error.message);
+      }
+    } else {
+      console.log('Skipping Gemini - no API key configured');
     }
 
     if (!renderUrl) {
+      console.log('Using placeholder fallback');
       prompt = getRenderingPrompt(spec, style, false);
       renderUrl = `https://placehold.co/1024x1024/e2e8f0/1e293b?text=${encodeURIComponent(style + ' Bathroom')}`;
     }
