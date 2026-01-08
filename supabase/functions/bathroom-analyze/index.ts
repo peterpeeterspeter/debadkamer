@@ -166,12 +166,42 @@ Deno.serve(async (req: Request) => {
       user_agent: req.headers.get('User-Agent'),
     });
 
+    let emptyRoomImageUrl = null;
+
+    if (storedSpec?.id) {
+      try {
+        const emptyRoomUrl = `${supabaseUrl}/functions/v1/bathroom-process-empty-room`;
+        const emptyRoomResponse = await fetch(emptyRoomUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`,
+          },
+          body: JSON.stringify({
+            image_base64: base64,
+            mime_type: mimeType,
+            spec_id: storedSpec.id,
+          }),
+        });
+
+        if (emptyRoomResponse.ok) {
+          const emptyRoomData = await emptyRoomResponse.json();
+          emptyRoomImageUrl = emptyRoomData.empty_room_image_url;
+        } else {
+          console.error('Empty room processing failed, continuing without it');
+        }
+      } catch (emptyRoomError) {
+        console.error('Empty room processing error:', emptyRoomError);
+      }
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
         spec,
         spec_id: storedSpec?.id,
         session_id: sessionId,
+        empty_room_image_url: emptyRoomImageUrl,
         message: 'Analysis complete',
       }),
       {

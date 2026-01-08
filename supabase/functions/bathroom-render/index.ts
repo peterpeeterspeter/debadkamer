@@ -50,11 +50,28 @@ const STYLES = {
   },
 };
 
-function getRenderingPrompt(spec: any, style: string): string {
+function getRenderingPrompt(spec: any, style: string, hasEmptyRoom: boolean): string {
   const styleDef = STYLES[style];
   const room = spec.room;
   const fixtures = spec.fixtures || [];
   const fixtureList = fixtures.map((f: any) => `${f.type} at ${f.position}`).join(', ');
+  
+  if (hasEmptyRoom) {
+    return `Transform this empty bathroom shell into a photorealistic ${styleDef.name} bathroom design.
+
+APPLY TO THIS ROOM:
+ROOM DIMENSIONS: ${room.length}m x ${room.width}m x ${room.height}m
+FIXTURES TO ADD: ${fixtureList}
+
+STYLE: ${styleDef.name} - ${styleDef.description}
+COLORS: ${styleDef.colors}
+CHARACTERISTICS: ${styleDef.characteristics.join(', ')}
+
+Preserve the exact room structure, walls, windows, and doors from the base image.
+Add all fixtures and style elements specified above.
+Create a photorealistic, professionally designed bathroom.
+Add small "finetuner.be" watermark in corner.`;
+  }
   
   return `Generate a photorealistic bathroom render:
 
@@ -93,16 +110,80 @@ Deno.serve(async (req: Request) => {
     const specId = req.headers.get('X-Spec-ID');
     const startTime = Date.now();
 
-    const prompt = getRenderingPrompt(spec, style);
-    
-    const renderId = crypto.randomUUID();
-    const renderUrl = `https://placehold.co/1024x1024/e2e8f0/1e293b?text=${encodeURIComponent(style + ' Bathroom')}`;
-
-    const generationTimeMs = Date.now() - startTime;
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    let emptyRoomImageUrl = null;
+    if (specId) {
+      const { data: specData } = await supabase
+        .from('bathroom_specs')
+        .select('empty_room_image_url')
+        .eq('id', specId)
+        .maybeSingle();
+      
+      emptyRoomImageUrl = specData?.empty_room_image_url;
+    }
+
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+    let renderUrl;
+    let prompt;
+
+    if (geminiApiKey && emptyRoomImageUrl) {
+      try {
+        prompt = getRenderingPrompt(spec, style, true);
+        
+        const base64Data = emptyRoomImageUrl.split(',')[1];
+        const mimeType = emptyRoomImageUrl.match(/data:(.*?);/)?.[1] || 'image/png';
+
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-preview:generateContent?key=${geminiApiKey}`;
+
+        const geminiResponse = await fetch(geminiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { text: prompt },
+                {
+                  inline_data: {
+                    mime_type: mimeType,
+                    data: base64Data
+                  }
+                }
+              ]
+            }],
+            generationConfig: {
+              temperature: 0.7,
+              topP: 0.95,
+              responseModalities: ['image'],
+            }
+          })
+        });
+
+        if (geminiResponse.ok) {
+          const geminiData = await geminiResponse.json();
+          const imagePart = geminiData.candidates?.[0]?.content?.parts?.find(
+            (part: any) => part.inline_data
+          );
+          
+          if (imagePart) {
+            const generatedImageBase64 = imagePart.inline_data.data;
+            const generatedMimeType = imagePart.inline_data.mime_type;
+            renderUrl = `data:${generatedMimeType};base64,${generatedImageBase64}`;
+          }
+        }
+      } catch (error) {
+        console.error('Gemini render error:', error);
+      }
+    }
+
+    if (!renderUrl) {
+      prompt = getRenderingPrompt(spec, style, false);
+      renderUrl = `https://placehold.co/1024x1024/e2e8f0/1e293b?text=${encodeURIComponent(style + ' Bathroom')}`;
+    }
+
+    const generationTimeMs = Date.now() - startTime;
 
     const { data: storedRender, error: dbError } = await supabase
       .from('renders')
@@ -136,7 +217,6 @@ Deno.serve(async (req: Request) => {
         style,
         session_id: sessionId,
         message: 'Render generated successfully',
-        note: 'Using placeholder image - connect AI image generator for actual renders',
       }),
       {
         headers: {

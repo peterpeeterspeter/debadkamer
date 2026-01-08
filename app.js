@@ -17,6 +17,7 @@ let currentSpec = null;
 let selectedStyle = null;
 let currentRenderUrl = null;
 let uploadedFile = null;
+let emptyRoomImageUrl = null;
 
 /**
  * Generate or retrieve session ID
@@ -196,9 +197,10 @@ async function analyzeBathroom() {
         currentSpec = data.spec;
         specId = data.spec_id;
         sessionId = data.session_id;
+        emptyRoomImageUrl = data.empty_room_image_url;
 
         // Display specs
-        displaySpecs(currentSpec);
+        displaySpecs(currentSpec, emptyRoomImageUrl);
 
         // Show next section
         specsSection.classList.remove('hidden');
@@ -218,12 +220,50 @@ async function analyzeBathroom() {
 /**
  * Display extracted specifications
  */
-function displaySpecs(spec) {
+function displaySpecs(spec, emptyRoomUrl = null) {
     const room = spec.room;
     const area = (room.length * room.width).toFixed(1);
 
     // Build HTML
-    let html = `
+    let html = '';
+
+    if (emptyRoomUrl) {
+        html += `
+            <div class="md:col-span-2 mb-6">
+                <h3 class="font-semibold text-lg mb-4 text-gray-800">
+                    <i class="fas fa-images text-blue-500 mr-2"></i>Image Processing
+                </h3>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-sm font-medium text-gray-700 mb-2 text-center">Original Bathroom</p>
+                        <img src="${previewImg.src}" alt="Original" class="w-full rounded-lg border-2 border-gray-300 shadow-md">
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-700 mb-2 text-center">Empty Room Shell</p>
+                        <img src="${emptyRoomUrl}" alt="Empty Room" class="w-full rounded-lg border-2 border-green-300 shadow-md">
+                        <p class="text-xs text-gray-500 mt-2 text-center italic">
+                            <i class="fas fa-check-circle text-green-500 mr-1"></i>
+                            AI-processed base for style rendering
+                        </p>
+                    </div>
+                </div>
+            </div>
+        `;
+    } else {
+        html += `
+            <div class="md:col-span-2 mb-6">
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center">
+                    <i class="fas fa-spinner fa-spin text-blue-500 mr-3 text-xl"></i>
+                    <div>
+                        <p class="font-medium text-blue-800">Processing Empty Room Shell...</p>
+                        <p class="text-sm text-blue-600">This may take a moment</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    html += `
         <div>
             <h3 class="font-semibold text-lg mb-3 text-gray-800">
                 <i class="fas fa-ruler-combined text-blue-500 mr-2"></i>Room Dimensions
@@ -499,7 +539,7 @@ function checkForSketchData() {
             analyzeBtn.classList.add('hidden');
 
             // Display specs immediately
-            displaySpecs(currentSpec);
+            displaySpecs(currentSpec, null);
             specsSection.classList.remove('hidden');
             styleSection.classList.remove('hidden');
 
