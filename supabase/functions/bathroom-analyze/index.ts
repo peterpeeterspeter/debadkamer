@@ -45,7 +45,6 @@ Deno.serve(async (req: Request) => {
   try {
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
     console.log('GEMINI_API_KEY exists:', !!geminiApiKey);
-    console.log('GEMINI_API_KEY length:', geminiApiKey?.length);
     
     if (!geminiApiKey) {
       return new Response(
@@ -74,8 +73,8 @@ Deno.serve(async (req: Request) => {
     
     const mimeType = file.type || 'image/jpeg';
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
-    console.log('Calling Gemini API...');
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
+    console.log('Calling Gemini API with v1...');
 
     const geminiResponse = await fetch(geminiUrl, {
       method: 'POST',
@@ -85,8 +84,8 @@ Deno.serve(async (req: Request) => {
           parts: [
             { text: EXTRACTION_PROMPT },
             {
-              inlineData: {
-                mimeType: mimeType,
+              inline_data: {
+                mime_type: mimeType,
                 data: base64
               }
             }
