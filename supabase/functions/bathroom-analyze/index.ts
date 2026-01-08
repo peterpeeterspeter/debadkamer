@@ -44,6 +44,9 @@ Deno.serve(async (req: Request) => {
 
   try {
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+    console.log('GEMINI_API_KEY exists:', !!geminiApiKey);
+    console.log('GEMINI_API_KEY length:', geminiApiKey?.length);
+    
     if (!geminiApiKey) {
       return new Response(
         JSON.stringify({ error: 'GEMINI_API_KEY not configured in Supabase secrets' }),
@@ -63,56 +66,76 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    console.log('File type:', file.type);
+    console.log('File size:', file.size);
+
     const arrayBuffer = await file.arrayBuffer();
     const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
     
     const mimeType = file.type || 'image/jpeg';
 
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: EXTRACTION_PROMPT },
-              {
-                inlineData: {
-                  mimeType: mimeType,
-                  data: base64
-                }
-              }
-            ]
-          }],
-          generationConfig: {
-            temperature: 0.4,
-            topP: 0.95,
-            maxOutputTokens: 2048,
-          }
-        })
-      }
-    );
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
+    console.log('Calling Gemini API...');
 
+    const geminiResponse = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: EXTRACTION_PROMPT },
+            {
+              inlineData: {
+                mimeType: mimeType,
+                data: base64
+              }
+            }
+          ]
+        }],
+        generationConfig: {
+          temperature: 0.4,
+          topP: 0.95,
+          maxOutputTokens: 2048,
+        }
+      })
+    });
+
+    console.log('Gemini response status:', geminiResponse.status);
+    
     if (!geminiResponse.ok) {
       const errorText = await geminiResponse.text();
-      console.error('Gemini API error:', errorText);
+      console.error('Gemini API error response:', errorText);
+      
+      let errorMessage = 'AI analysis failed';
+      try {
+        const errorJson = JSON.parse(errorText);
+        if (errorJson.error?.message) {
+          errorMessage = errorJson.error.message;
+        }
+      } catch (e) {
+        // Error text is not JSON
+      }
+      
       return new Response(
-        JSON.stringify({ error: 'AI analysis failed - please check API key and quota' }),
+        JSON.stringify({ error: errorMessage }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const geminiData = await geminiResponse.json();
+    console.log('Gemini response received');
+    
     const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
     
     if (!responseText) {
+      console.error('No response text from Gemini:', JSON.stringify(geminiData));
       return new Response(
         JSON.stringify({ error: 'No response from AI' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    console.log('Parsing response...');
     let spec;
     try {
       let jsonStr = responseText;
