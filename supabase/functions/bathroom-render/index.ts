@@ -115,7 +115,7 @@ Deno.serve(async (req: Request) => {
         generation_time_ms: generationTimeMs,
       })
       .select()
-      .single();
+      .maybeSingle();
 
     if (dbError) {
       console.error('Database error:', dbError);

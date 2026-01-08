@@ -45,7 +45,10 @@ Deno.serve(async (req: Request) => {
   try {
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
     if (!geminiApiKey) {
-      throw new Error('GEMINI_API_KEY not configured');
+      return new Response(
+        JSON.stringify({ error: 'GEMINI_API_KEY not configured in Supabase secrets' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const sessionId = req.headers.get('X-Session-ID') || crypto.randomUUID();
@@ -66,7 +69,7 @@ Deno.serve(async (req: Request) => {
     const mimeType = file.type || 'image/jpeg';
 
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -75,8 +78,8 @@ Deno.serve(async (req: Request) => {
             parts: [
               { text: EXTRACTION_PROMPT },
               {
-                inline_data: {
-                  mime_type: mimeType,
+                inlineData: {
+                  mimeType: mimeType,
                   data: base64
                 }
               }
@@ -92,16 +95,22 @@ Deno.serve(async (req: Request) => {
     );
 
     if (!geminiResponse.ok) {
-      const error = await geminiResponse.text();
-      console.error('Gemini API error:', error);
-      throw new Error('AI analysis failed');
+      const errorText = await geminiResponse.text();
+      console.error('Gemini API error:', errorText);
+      return new Response(
+        JSON.stringify({ error: 'AI analysis failed - please check API key and quota' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const geminiData = await geminiResponse.json();
     const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
     
     if (!responseText) {
-      throw new Error('No response from AI');
+      return new Response(
+        JSON.stringify({ error: 'No response from AI' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     let spec;
@@ -119,7 +128,10 @@ Deno.serve(async (req: Request) => {
       spec = JSON.parse(jsonStr);
     } catch (e) {
       console.error('Failed to parse JSON:', responseText);
-      throw new Error('Invalid AI response format');
+      return new Response(
+        JSON.stringify({ error: 'Invalid AI response format' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     if (spec.confidence < 0.5) {
@@ -151,7 +163,7 @@ Deno.serve(async (req: Request) => {
         style_preferences: stylePrefs,
       })
       .select()
-      .single();
+      .maybeSingle();
 
     if (dbError) {
       console.error('Database error:', dbError);

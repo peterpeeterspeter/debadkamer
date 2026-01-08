@@ -80,7 +80,7 @@ Deno.serve(async (req: Request) => {
         },
       })
       .select()
-      .single();
+      .maybeSingle();
 
     if (dbError) {
       console.error('Database error:', dbError);
