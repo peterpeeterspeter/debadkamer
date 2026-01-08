@@ -93,20 +93,13 @@ Deno.serve(async (req: Request) => {
     const specId = req.headers.get('X-Spec-ID');
     const startTime = Date.now();
 
-    // Generate rendering prompt
     const prompt = getRenderingPrompt(spec, style);
-
-    // NOTE: Actual image generation would require:
-    // 1. Gemini Imagen API access (not available in basic API)
-    // 2. Or integration with DALL-E, Midjourney, Stable Diffusion, etc.
-    // For now, we'll create a placeholder URL
     
     const renderId = crypto.randomUUID();
     const renderUrl = `https://placehold.co/1024x1024/e2e8f0/1e293b?text=${encodeURIComponent(style + ' Bathroom')}`;
 
     const generationTimeMs = Date.now() - startTime;
 
-    // Store in Supabase
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -128,7 +121,6 @@ Deno.serve(async (req: Request) => {
       console.error('Database error:', dbError);
     }
 
-    // Track analytics
     await supabase.from('analytics_events').insert({
       session_id: sessionId,
       event_type: 'render',

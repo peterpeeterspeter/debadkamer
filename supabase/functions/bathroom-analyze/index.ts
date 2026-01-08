@@ -48,10 +48,8 @@ Deno.serve(async (req: Request) => {
       throw new Error('GEMINI_API_KEY not configured');
     }
 
-    // Get session ID
     const sessionId = req.headers.get('X-Session-ID') || crypto.randomUUID();
 
-    // Parse form data
     const formData = await req.formData();
     const file = formData.get('file') as File;
     
@@ -62,14 +60,11 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Convert file to base64
     const arrayBuffer = await file.arrayBuffer();
     const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
     
-    // Get file mime type
     const mimeType = file.type || 'image/jpeg';
 
-    // Call Gemini API
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`,
       {
@@ -109,10 +104,8 @@ Deno.serve(async (req: Request) => {
       throw new Error('No response from AI');
     }
 
-    // Extract JSON from response
     let spec;
     try {
-      // Try to find JSON in response
       let jsonStr = responseText;
       if (responseText.includes('```json')) {
         const start = responseText.indexOf('```json') + 7;
@@ -129,7 +122,6 @@ Deno.serve(async (req: Request) => {
       throw new Error('Invalid AI response format');
     }
 
-    // Validate confidence
     if (spec.confidence < 0.5) {
       return new Response(
         JSON.stringify({ 
@@ -140,7 +132,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Store in Supabase
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -166,7 +157,6 @@ Deno.serve(async (req: Request) => {
       console.error('Database error:', dbError);
     }
 
-    // Track analytics
     await supabase.from('analytics_events').insert({
       session_id: sessionId,
       event_type: 'analyze',

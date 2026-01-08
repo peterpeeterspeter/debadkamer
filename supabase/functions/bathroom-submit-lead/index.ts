@@ -9,7 +9,6 @@ const corsHeaders = {
 function calculateLeadScore(spec: any, timeline: string): string {
   let score = 0;
 
-  // Timeline scoring
   const timelineScores: Record<string, number> = {
     "1-3 months": 3,
     "3-6 months": 2,
@@ -18,7 +17,6 @@ function calculateLeadScore(spec: any, timeline: string): string {
   };
   score += timelineScores[timeline] || 0;
 
-  // Bathroom size scoring
   const room = spec.room || {};
   const area = (room.length || 0) * (room.width || 0);
   if (area > 8) {
@@ -27,7 +25,6 @@ function calculateLeadScore(spec: any, timeline: string): string {
     score += 1;
   }
 
-  // Fixture complexity
   const fixtureCount = (spec.fixtures || []).length;
   if (fixtureCount >= 4) {
     score += 2;
@@ -35,12 +32,10 @@ function calculateLeadScore(spec: any, timeline: string): string {
     score += 1;
   }
 
-  // Confidence scoring
   if ((spec.confidence || 0) > 0.8) {
     score += 1;
   }
 
-  // Determine lead score
   if (score >= 6) return "high";
   if (score >= 3) return "medium";
   return "low";
@@ -64,7 +59,6 @@ Deno.serve(async (req: Request) => {
     const sessionId = req.headers.get('X-Session-ID') || crypto.randomUUID();
     const leadScore = calculateLeadScore(spec_json, project_timeline);
 
-    // Store in Supabase
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -93,7 +87,6 @@ Deno.serve(async (req: Request) => {
       throw new Error('Failed to store lead');
     }
 
-    // Track analytics
     await supabase.from('analytics_events').insert({
       session_id: sessionId,
       event_type: 'submit_lead',
