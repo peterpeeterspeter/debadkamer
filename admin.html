@@ -168,13 +168,14 @@
     </div>
 
     <script type="module">
-        const API_BASE_URL = window.location.hostname === 'localhost' ? 'http://localhost:8000' : window.location.origin;
+        const SUPABASE_URL = 'https://hlahumsdruxifmscyuql.supabase.co';
+        const API_BASE_URL = `${SUPABASE_URL}/functions/v1`;
         let allLeads = [];
         let currentFilter = 'all';
 
         async function loadAnalytics() {
             try {
-                const response = await fetch(`${API_BASE_URL}/api/admin/analytics`);
+                const response = await fetch(`${API_BASE_URL}/bathroom-admin/analytics`);
                 const data = await response.json();
 
                 if (data.success) {
@@ -205,8 +206,8 @@
         async function loadLeads(status = null) {
             try {
                 const url = status && status !== 'all'
-                    ? `${API_BASE_URL}/api/admin/leads?status=${status}`
-                    : `${API_BASE_URL}/api/admin/leads`;
+                    ? `${API_BASE_URL}/bathroom-admin/leads?status=${status}`
+                    : `${API_BASE_URL}/bathroom-admin/leads`;
 
                 const response = await fetch(url);
                 const data = await response.json();
@@ -289,8 +290,12 @@
 
         async function updateLeadStatus(leadId, newStatus) {
             try {
-                const response = await fetch(`${API_BASE_URL}/api/admin/leads/${leadId}/status?status=${newStatus}`, {
-                    method: 'PUT'
+                const response = await fetch(`${API_BASE_URL}/bathroom-admin/leads/${leadId}/status`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ status: newStatus })
                 });
 
                 const data = await response.json();

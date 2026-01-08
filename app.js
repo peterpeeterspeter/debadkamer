@@ -3,10 +3,9 @@
  * Handles image upload, analysis, style selection, rendering, and lead capture
  */
 
-// API Configuration
-// Priority: Environment variable > Relative URL (for proxied requests) > Fallback to localhost
-const API_BASE_URL = import.meta.env?.VITE_API_URL ||
-                     (window.location.hostname === 'localhost' ? 'http://localhost:8000' : window.location.origin);
+// API Configuration - Using Supabase Edge Functions
+const SUPABASE_URL = import.meta.env?.VITE_SUPABASE_URL || 'https://hlahumsdruxifmscyuql.supabase.co';
+const API_BASE_URL = `${SUPABASE_URL}/functions/v1`;
 
 // Session tracking
 let sessionId = null;
@@ -178,7 +177,7 @@ async function analyzeBathroom() {
         formData.append('file', uploadedFile);
 
         // Call API
-        const response = await fetch(`${API_BASE_URL}/api/analyze`, {
+        const response = await fetch(`${API_BASE_URL}/bathroom-analyze`, {
             method: 'POST',
             headers: getHeaders(),
             body: formData
@@ -281,7 +280,7 @@ function displaySpecs(spec) {
  */
 async function loadStyles() {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/styles`);
+        const response = await fetch(`${API_BASE_URL}/bathroom-styles`);
 
         if (!response.ok) {
             throw new Error('API not available');
@@ -352,7 +351,7 @@ async function generateRender() {
 
     try {
         // Call render API
-        const response = await fetch(`${API_BASE_URL}/api/render`, {
+        const response = await fetch(`${API_BASE_URL}/bathroom-render`, {
             method: 'POST',
             headers: getHeaders({
                 'Content-Type': 'application/json',
@@ -405,7 +404,7 @@ async function handleLeadSubmit(e) {
     };
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/submit-lead`, {
+        const response = await fetch(`${API_BASE_URL}/bathroom-submit-lead`, {
             method: 'POST',
             headers: getHeaders({
                 'Content-Type': 'application/json'
