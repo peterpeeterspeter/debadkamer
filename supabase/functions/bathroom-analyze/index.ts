@@ -68,7 +68,7 @@ Deno.serve(async (req: Request) => {
     const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
     const mimeType = file.type || 'image/jpeg';
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${geminiApiKey}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
 
     const geminiResponse = await fetch(geminiUrl, {
       method: 'POST',
