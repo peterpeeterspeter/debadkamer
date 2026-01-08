@@ -36,6 +36,7 @@ Deno.serve(async (req: Request) => {
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
     
     if (!geminiApiKey) {
+      console.error('GEMINI_API_KEY not configured');
       return new Response(
         JSON.stringify({ error: 'GEMINI_API_KEY not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -52,6 +53,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const startTime = Date.now();
+    console.log('Starting empty room generation...');
 
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-preview:generateContent?key=${geminiApiKey}`;
 
@@ -83,17 +85,20 @@ Deno.serve(async (req: Request) => {
       console.error('Gemini error:', errorText);
       
       return new Response(
-        JSON.stringify({ error: 'Empty room generation failed' }),
+        JSON.stringify({ error: 'Empty room generation failed', details: errorText }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const geminiData = await geminiResponse.json();
+    console.log('Gemini response received');
+    
     const imagePart = geminiData.candidates?.[0]?.content?.parts?.find(
       (part: any) => part.inline_data
     );
     
     if (!imagePart) {
+      console.error('No image in Gemini response');
       return new Response(
         JSON.stringify({ error: 'No image generated' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -105,6 +110,7 @@ Deno.serve(async (req: Request) => {
     const dataUrl = `data:${generatedMimeType};base64,${generatedImageBase64}`;
 
     const processingTime = Date.now() - startTime;
+    console.log(`Empty room generated in ${processingTime}ms`);
 
     if (spec_id) {
       const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -115,6 +121,8 @@ Deno.serve(async (req: Request) => {
         .from('bathroom_specs')
         .update({ empty_room_image_url: dataUrl })
         .eq('id', spec_id);
+      
+      console.log('Database updated with empty room URL');
     }
 
     return new Response(

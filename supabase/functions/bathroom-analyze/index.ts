@@ -46,8 +46,12 @@ Deno.serve(async (req: Request) => {
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
     
     if (!geminiApiKey) {
+      console.error('GEMINI_API_KEY not configured');
       return new Response(
-        JSON.stringify({ error: 'GEMINI_API_KEY not configured' }),
+        JSON.stringify({ 
+          error: 'API key not configured. Please add GEMINI_API_KEY in Supabase dashboard.',
+          setup_url: 'https://supabase.com/dashboard/project/_/settings/secrets'
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -68,7 +72,8 @@ Deno.serve(async (req: Request) => {
     const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
     const mimeType = file.type || 'image/jpeg';
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${geminiApiKey}`;
+    console.log('Calling Gemini API for analysis...');
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`;
 
     const geminiResponse = await fetch(geminiUrl, {
       method: 'POST',
@@ -95,18 +100,24 @@ Deno.serve(async (req: Request) => {
     
     if (!geminiResponse.ok) {
       const errorText = await geminiResponse.text();
-      console.error('Gemini error:', errorText);
+      console.error('Gemini API error:', errorText);
       
       return new Response(
-        JSON.stringify({ error: 'AI analysis failed' }),
+        JSON.stringify({ 
+          error: 'AI analysis failed. Please check your API key configuration.',
+          details: errorText.substring(0, 200)
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const geminiData = await geminiResponse.json();
+    console.log('Gemini response received');
+    
     const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
     
     if (!responseText) {
+      console.error('No text in Gemini response:', JSON.stringify(geminiData).substring(0, 200));
       return new Response(
         JSON.stringify({ error: 'No response from AI' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -127,8 +138,12 @@ Deno.serve(async (req: Request) => {
       }
       spec = JSON.parse(jsonStr);
     } catch (e) {
+      console.error('Failed to parse AI response:', responseText.substring(0, 200));
       return new Response(
-        JSON.stringify({ error: 'Invalid AI response format' }),
+        JSON.stringify({ 
+          error: 'Invalid AI response format',
+          details: responseText.substring(0, 200)
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -168,8 +183,9 @@ Deno.serve(async (req: Request) => {
 
     let emptyRoomImageUrl = null;
 
-    if (storedSpec?.id) {
+    if (storedSpec?.id && geminiApiKey) {
       try {
+        console.log('Triggering empty room processing...');
         const emptyRoomUrl = `${supabaseUrl}/functions/v1/bathroom-process-empty-room`;
         const emptyRoomResponse = await fetch(emptyRoomUrl, {
           method: 'POST',
@@ -187,8 +203,10 @@ Deno.serve(async (req: Request) => {
         if (emptyRoomResponse.ok) {
           const emptyRoomData = await emptyRoomResponse.json();
           emptyRoomImageUrl = emptyRoomData.empty_room_image_url;
+          console.log('Empty room generated successfully');
         } else {
-          console.error('Empty room processing failed, continuing without it');
+          const errorText = await emptyRoomResponse.text();
+          console.error('Empty room processing failed:', errorText);
         }
       } catch (emptyRoomError) {
         console.error('Empty room processing error:', emptyRoomError);
@@ -214,7 +232,10 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     console.error('Error:', error);
     return new Response(
-      JSON.stringify({ error: error.message || 'Analysis failed' }),
+      JSON.stringify({ 
+        error: error.message || 'Analysis failed',
+        type: error.name
+      }),
       {
         status: 500,
         headers: {
