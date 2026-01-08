@@ -55,7 +55,7 @@ Deno.serve(async (req: Request) => {
     const startTime = Date.now();
     console.log('Starting empty room generation...');
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${geminiApiKey}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent?key=${geminiApiKey}`;
 
     const geminiResponse = await fetch(geminiUrl, {
       method: 'POST',

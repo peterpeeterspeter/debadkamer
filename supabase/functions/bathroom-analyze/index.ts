@@ -73,7 +73,7 @@ Deno.serve(async (req: Request) => {
     const mimeType = file.type || 'image/jpeg';
 
     console.log('Calling Gemini API for analysis...');
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${geminiApiKey}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${geminiApiKey}`;
 
     const geminiResponse = await fetch(geminiUrl, {
       method: 'POST',
