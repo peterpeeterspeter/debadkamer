@@ -136,7 +136,7 @@ Deno.serve(async (req: Request) => {
         const base64Data = emptyRoomImageUrl.split(',')[1];
         const mimeType = emptyRoomImageUrl.match(/data:(.*?);/)?.[1] || 'image/png';
 
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-preview:generateContent?key=${geminiApiKey}`;
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent?key=${geminiApiKey}`;
 
         const geminiResponse = await fetch(geminiUrl, {
           method: 'POST',

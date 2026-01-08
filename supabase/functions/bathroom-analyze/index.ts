@@ -185,7 +185,7 @@ Deno.serve(async (req: Request) => {
 
     if (storedSpec?.id && geminiApiKey) {
       try {
-        console.log('Triggering empty room processing...');
+        console.log('Triggering empty room processing for spec_id:', storedSpec.id);
         const emptyRoomUrl = `${supabaseUrl}/functions/v1/bathroom-process-empty-room`;
         const emptyRoomResponse = await fetch(emptyRoomUrl, {
           method: 'POST',
@@ -200,17 +200,23 @@ Deno.serve(async (req: Request) => {
           }),
         });
 
+        console.log('Empty room response status:', emptyRoomResponse.status);
+
         if (emptyRoomResponse.ok) {
           const emptyRoomData = await emptyRoomResponse.json();
           emptyRoomImageUrl = emptyRoomData.empty_room_image_url;
-          console.log('Empty room generated successfully');
+          console.log('Empty room generated successfully, URL length:', emptyRoomImageUrl?.length || 0);
         } else {
           const errorText = await emptyRoomResponse.text();
-          console.error('Empty room processing failed:', errorText);
+          console.error('Empty room processing failed with status:', emptyRoomResponse.status);
+          console.error('Error details:', errorText.substring(0, 500));
         }
       } catch (emptyRoomError) {
-        console.error('Empty room processing error:', emptyRoomError);
+        console.error('Empty room processing exception:', emptyRoomError.message);
+        console.error('Error stack:', emptyRoomError.stack?.substring(0, 500));
       }
+    } else {
+      console.log('Skipping empty room generation - spec_id:', storedSpec?.id, 'geminiApiKey:', !!geminiApiKey);
     }
 
     return new Response(
