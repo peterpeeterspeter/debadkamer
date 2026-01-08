@@ -282,12 +282,15 @@ function displaySpecs(spec) {
 async function loadStyles() {
     try {
         const response = await fetch(`${API_BASE_URL}/api/styles`);
-        const data = await response.json();
 
+        if (!response.ok) {
+            throw new Error('API not available');
+        }
+
+        const data = await response.json();
         displayStyles(data.styles);
     } catch (error) {
         console.error('Error loading styles:', error);
-        // Fallback to hardcoded styles
         displayStyles([
             { id: 'modern', name: 'Modern', description: 'Clean lines, floating vanity, large format tiles' },
             { id: 'classic', name: 'Classic', description: 'Traditional elegance with timeless fixtures' },
