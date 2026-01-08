@@ -169,13 +169,23 @@
 
     <script type="module">
         const SUPABASE_URL = 'https://hlahumsdruxifmscyuql.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsYWh1bXNkcnV4aWZtc2N5dXFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzMTI4NDgsImV4cCI6MjA4MDg4ODg0OH0.kkMRwjhOqsTbBXP0k466SZjJY-nWIY1oOXdAkaIeNmE';
         const API_BASE_URL = `${SUPABASE_URL}/functions/v1`;
+
+        const getHeaders = (additionalHeaders = {}) => ({
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            ...additionalHeaders
+        });
+
         let allLeads = [];
         let currentFilter = 'all';
 
         async function loadAnalytics() {
             try {
-                const response = await fetch(`${API_BASE_URL}/bathroom-admin/analytics`);
+                const response = await fetch(`${API_BASE_URL}/bathroom-admin/analytics`, {
+                    headers: getHeaders()
+                });
                 const data = await response.json();
 
                 if (data.success) {
@@ -209,7 +219,9 @@
                     ? `${API_BASE_URL}/bathroom-admin/leads?status=${status}`
                     : `${API_BASE_URL}/bathroom-admin/leads`;
 
-                const response = await fetch(url);
+                const response = await fetch(url, {
+                    headers: getHeaders()
+                });
                 const data = await response.json();
 
                 if (data.success) {
@@ -292,9 +304,9 @@
             try {
                 const response = await fetch(`${API_BASE_URL}/bathroom-admin/leads/${leadId}/status`, {
                     method: 'PUT',
-                    headers: {
+                    headers: getHeaders({
                         'Content-Type': 'application/json'
-                    },
+                    }),
                     body: JSON.stringify({ status: newStatus })
                 });
 

@@ -5,6 +5,7 @@
 
 // API Configuration - Using Supabase Edge Functions
 const SUPABASE_URL = import.meta.env?.VITE_SUPABASE_URL || 'https://hlahumsdruxifmscyuql.supabase.co';
+const SUPABASE_ANON_KEY = import.meta.env?.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsYWh1bXNkcnV4aWZtc2N5dXFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzMTI4NDgsImV4cCI6MjA4MDg4ODg0OH0.kkMRwjhOqsTbBXP0k466SZjJY-nWIY1oOXdAkaIeNmE';
 const API_BASE_URL = `${SUPABASE_URL}/functions/v1`;
 
 // Session tracking
@@ -36,6 +37,8 @@ function getSessionId() {
  */
 function getHeaders(additionalHeaders = {}) {
     return {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
         'X-Session-ID': getSessionId(),
         ...additionalHeaders
     };
@@ -280,7 +283,9 @@ function displaySpecs(spec) {
  */
 async function loadStyles() {
     try {
-        const response = await fetch(`${API_BASE_URL}/bathroom-styles`);
+        const response = await fetch(`${API_BASE_URL}/bathroom-styles`, {
+            headers: getHeaders()
+        });
 
         if (!response.ok) {
             throw new Error('API not available');
