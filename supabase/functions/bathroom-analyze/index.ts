@@ -44,11 +44,10 @@ Deno.serve(async (req: Request) => {
 
   try {
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
-    console.log('GEMINI_API_KEY exists:', !!geminiApiKey);
     
     if (!geminiApiKey) {
       return new Response(
-        JSON.stringify({ error: 'GEMINI_API_KEY not configured in Supabase secrets' }),
+        JSON.stringify({ error: 'GEMINI_API_KEY not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -65,16 +64,11 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    console.log('File type:', file.type);
-    console.log('File size:', file.size);
-
     const arrayBuffer = await file.arrayBuffer();
     const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-    
     const mimeType = file.type || 'image/jpeg';
 
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${geminiApiKey}`;
-    console.log('Calling Gemini 3 Pro Preview API...');
 
     const geminiResponse = await fetch(geminiUrl, {
       method: 'POST',
@@ -98,43 +92,27 @@ Deno.serve(async (req: Request) => {
         }
       })
     });
-
-    console.log('Gemini response status:', geminiResponse.status);
     
     if (!geminiResponse.ok) {
       const errorText = await geminiResponse.text();
-      console.error('Gemini API error response:', errorText);
-      
-      let errorMessage = 'AI analysis failed';
-      try {
-        const errorJson = JSON.parse(errorText);
-        if (errorJson.error?.message) {
-          errorMessage = errorJson.error.message;
-        }
-      } catch (e) {
-        // Error text is not JSON
-      }
+      console.error('Gemini error:', errorText);
       
       return new Response(
-        JSON.stringify({ error: errorMessage }),
+        JSON.stringify({ error: 'AI analysis failed' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const geminiData = await geminiResponse.json();
-    console.log('Gemini response received');
-    
     const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
     
     if (!responseText) {
-      console.error('No response text from Gemini:', JSON.stringify(geminiData));
       return new Response(
         JSON.stringify({ error: 'No response from AI' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Parsing response...');
     let spec;
     try {
       let jsonStr = responseText;
@@ -149,7 +127,6 @@ Deno.serve(async (req: Request) => {
       }
       spec = JSON.parse(jsonStr);
     } catch (e) {
-      console.error('Failed to parse JSON:', responseText);
       return new Response(
         JSON.stringify({ error: 'Invalid AI response format' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -159,8 +136,7 @@ Deno.serve(async (req: Request) => {
     if (spec.confidence < 0.5) {
       return new Response(
         JSON.stringify({ 
-          success: false,
-          error: 'Image quality too low for accurate analysis - try a clearer photo or add dimension labels to sketch'
+          error: 'Image quality too low - try a clearer photo'
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -170,26 +146,18 @@ Deno.serve(async (req: Request) => {
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const dimensions = spec.room || {};
-    const fixtures = spec.fixtures || [];
-    const stylePrefs = spec.style_preferences || {};
-
-    const { data: storedSpec, error: dbError } = await supabase
+    const { data: storedSpec } = await supabase
       .from('bathroom_specs')
       .insert({
         session_id: sessionId,
         spec_json: spec,
         confidence_score: spec.confidence,
-        dimensions,
-        fixtures,
-        style_preferences: stylePrefs,
+        dimensions: spec.room || {},
+        fixtures: spec.fixtures || [],
+        style_preferences: {},
       })
       .select()
       .maybeSingle();
-
-    if (dbError) {
-      console.error('Database error:', dbError);
-    }
 
     await supabase.from('analytics_events').insert({
       session_id: sessionId,
